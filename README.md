@@ -4,6 +4,7 @@
 
 
 The dataset utilized in this analysis combines data from Statistics Canada, the NHL team list endpoint, and the NHL API. It is inspired by the blog "Are Birth Dates Still Destiny for Canadian NHL Players?" by JLaw. The dataset includes information about NHL players, such as their birthdates and nationality, obtained from the NHL API. 
+
 2. Why we choose this data
 
 
