@@ -1,0 +1,200 @@
+---
+title: "Question 1"
+author: "Loi Nguyen"
+date: "2024-04-02"
+output: html_document
+---
+
+
+## Read data
+```{r}
+# Read the CSV file
+nhl_data <- read.csv("nhl_player_births.csv")
+
+```
+
+
+
+## Display distribution of birth month
+
+```{r}
+# Assuming 'data' is your data frame with a column 'birth_month'
+# Define a vector of month names
+month_names <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+# Convert the birth_month column in nhl_data to factor with month names as labels
+nhl_data$birth_month <- factor(nhl_data$birth_month, levels = 1:12, labels = month_names)
+
+# Now, continue with the rest of your code
+# Step 2: Calculate the percentage of players born in each month
+birth_month_counts <- table(nhl_data$birth_month) 
+# Count the occurrences of each birth month
+total_players <- nrow(nhl_data)  # Total number of players
+
+percentages <- (birth_month_counts / total_players) * 100  # Calculate percentages
+
+# Create a data frame with the calculated percentages
+df <- data.frame(month = names(percentages), percentage = as.numeric(percentages))
+
+# Define colors for each month
+colors <- c("Jan" = "orange", "Feb" = "orange", "Mar" = "orange", "Apr" = "skyblue", 
+            "May" = "skyblue", "Jun"  = "skyblue" , "Jul"  = "skyblue" , 
+            "Aug" = "skyblue", "Sep" = "skyblue", "Oct" = "skyblue", 
+            "Nov" = "skyblue", "Dec" = "skyblue")
+
+# Create the bar plot using ggplot2
+# Reorder the months by percentage
+df$month <- factor(df$month, levels = names(sort(percentages, decreasing = TRUE)))
+
+# Load the ggplot2 library if not already loaded
+library(ggplot2)
+
+# Create the bar plot using ggplot2 with specified colors and ordered months
+ggplot(df, aes(x = month, y = percentage/10, fill = month)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Percentage of NHL Players Born Each Month",
+       x = "Birth Month",
+       y = "Percentage") +
+  scale_fill_manual(values = colors) +  # Use specified colors
+  theme_minimal() +  # Apply a minimal theme
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_hline(yintercept = 0.833, color = "red", linetype = "dashed") +
+  annotate("text", x = length(df$month), y = 0.88, label = "Avg: 0.833%", color = "red", size = 3, hjust = 1) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  guides(fill = FALSE)  # Remove legend
+```
+
+## This graph show all the information of players throughout dozens of seasons so let's dive deeper into each season to make sure that nothing interesting is being missed.
+
+
+## Merging data so it will include only useful columns. 
+```{r}
+  nhl_rosters <- read.csv("nhl_rosters.csv")
+  
+  unique_team_codes <- unique(nhl_rosters$team_code)
+  nhl_rosters <- read.csv("nhl_rosters.csv")
+  nhl_data <- read.csv("nhl_player_births.csv")
+  
+  # Merge the datasets on player_id
+  merged_data <- merge(nhl_rosters, nhl_data, by = "player_id")
+  
+  # Select and rename columns from the merged dataset
+  middle_data <- subset(merged_data, select = c("player_id", "team_code", "season", "birth_month"))
+  colnames(middle_data) <- c("player_id", "team_code", "season", "birth_month")
+  
+  # Print the resulting middle data
+  print(middle_data)
+
+```
+
+
+```{r}
+library(dplyr)
+result <- middle_data %>%
+  group_by(season) %>%
+  summarise(total_players = n(),  # Count total players in the season
+            first_3_months = sum(birth_month %in% 1:3)) %>%  # Count players born in the first 3 months
+  mutate(percent_first_3_months = (first_3_months / total_players) * 100)  # Calculate percentage
+
+# Print the result
+print(result)
+
+```
+
+
+
+## How dominant the first-quarter-born through the history?
+```{r}
+# Load the required library
+library(ggplot2)
+
+
+# Plot the line chart
+ggplot(result, aes(x = season / 10000, y = percent_first_3_months)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Percentage of Players Born in First 3 Months by Season",
+       x = "Season",
+       y = "Percentage of Players") +
+  geom_hline(yintercept = 25, color = "red", linetype = "dashed") + 
+  annotate("text", x = 2011.5, y = 35, label = "Introduction of\nMalcolm Gladwell’s Outliers", color = "blue", size = 2) +
+  geom_segment(aes(x = 2014, y = 34, xend = 2011.5, yend = 30), color = "red", arrow = arrow(length = unit(0.07, "inches")), size = 0.3) +
+  annotate("text", x = 1958, y = 35, label = "First NHL\nEntry Draft", color = "blue", size = 2) +
+  geom_segment(aes(x = 1958, y = 34, xend = 1962.5, yend = 28), color = "red", arrow = arrow(length = unit(0.1, "inches")), size = 0.3) +
+  theme_minimal()
+
+```
+
+
+
+
+
+## New data for the last chart
+
+```{r}
+library(dplyr)
+
+# Assuming your data frame has columns `team_code` and `season`
+result <- middle_data %>%
+  group_by(season, team_code) %>%
+  summarise(total_players = n(),  # Count total players in the season and team_code
+            first_3_months = sum(birth_month %in% 1:3)) %>%  # Count players born in the first 3 months
+  mutate(percent_first_3_months = (first_3_months / total_players) * 100)  # Calculate percentage
+
+# Print the result
+print(result)
+
+
+```
+
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+library(ggplot2)
+
+# Count the number of seasons for each team
+team_season_counts <- result %>%
+  group_by(team_code) %>%
+  summarize(total_seasons = n_distinct(season))
+
+# Count the number of seasons where first_3_months_players > 25 for each team
+team_exceed_25_counts <- result %>%
+  filter(percent_first_3_months > 25) %>%
+  group_by(team_code) %>%
+  summarize(exceed_25_seasons = n_distinct(season))
+
+# Merge the two datasets
+team_counts <- merge(team_season_counts, team_exceed_25_counts, by = "team_code", all.x = TRUE)
+
+# Fill NA values with 0 (for teams where no seasons have first_3_months_players > 25)
+team_counts[is.na(team_counts)] <- 0
+
+# Print the result
+print(team_counts)
+
+
+```
+
+## Chart to see whether it is dominant in most teams
+```{r}
+
+team_counts <- team_counts %>%
+  mutate(percent_exceed_25 = exceed_25_seasons / total_seasons)
+
+# Create the bar chart
+ggplot(data = team_counts, aes(x = team_code, y = percent_exceed_25)) +
+  geom_bar(stat = "identity", fill = "skyblue" , width = 0.5) +
+  labs(title = "Proportion of each Team with dominant first_quarter_born players",
+       x = "Team",
+       y = "Percent") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+   geom_hline(yintercept = 0.25, color = "red", linetype = "dashed") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 6)) 
+
+```

@@ -1,0 +1,95 @@
+---
+title: "Question2"
+output: html_document
+date: "2024-04-06"
+---
+```{r}
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(scales)
+library(sf)
+library(gridExtra)
+library(rnaturalearth)
+library(rnaturalearthdata)
+```
+
+```{r}
+# Load the data from the CSV file
+nhl_rosters <- read.csv("nhl_rosters.csv")
+
+# View the first few rows of the dataset
+head(nhl_rosters)
+```
+
+```{r}
+# Load the world map
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+# Count the number of players by birth country
+players_by_country <- nhl_rosters %>%
+  group_by(birth_country) %>%
+  summarise(count = n(), .groups = 'drop')
+
+# Join this data with the world map data
+world_with_players <- world %>%
+  left_join(players_by_country, by = c("iso_a3" = "birth_country"))
+
+# Change 0 to NA to use the na.value color for 0 count countries
+world_with_players$count[world_with_players$count == 0] <- NA
+
+# Plot the map
+ggplot(data = world_with_players) +
+  geom_sf(aes(fill = count), color = NA) + # Remove borders
+  scale_fill_viridis_c(
+    name = "Number of Players",
+    breaks = pretty_breaks(n = 5), # for nice round numbers in legend
+    na.value = "gray", # Set color for NA values to gray
+    labels = scales::comma # Use commas for thousand separators
+  ) +
+  labs(title = "World Map of Hockey Players' Birth Countries") +
+  theme_minimal() +
+  theme(legend.position = "right",
+        plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 10, face = "bold"),
+        plot.background = element_rect(fill = "#f7f7f7"), # Light grey plot background
+        panel.background = element_rect(fill = "#f7f7f7"), # Match panel background to plot
+        legend.background = element_rect(fill = "#f7f7f7"), # Match legend background
+        plot.margin = margin(10, 10, 10, 10)) + # Adjust margins around the plot
+  coord_sf(crs = st_crs("+proj=robin"), datum = NA) # Use Robinson projection
+```
+
+```{r}
+team_data <- read_csv("NHL.csv")
+
+# Merging the data frames based on 'team_code' in rosters and 'abbreviation' in nhl
+merged_data <- left_join(nhl_rosters, team_data, by = c("team_code" = "abbreviation"))
+
+# View the first few rows of the merged data
+head(merged_data)
+
+# Adding a new column to indicate if the player's birth city matches the team's city
+merged_data <- merged_data %>%
+  mutate(same_city = ifelse(`venue/city` == birth_city, 1, 0))
+
+# Summarizing the number of players per team who are from the same city as their team
+same_city_summary <- merged_data %>%
+  group_by(name) %>%
+  summarise(same_city_players = sum(same_city))
+
+# Filter out teams with 0 players from the same city
+filtered_data <- same_city_summary %>%
+  filter(same_city_players > 0)
+
+# Create a bar plot using ggplot2
+ggplot(filtered_data, aes(x = reorder(name, -same_city_players), y = same_city_players, fill = name)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(title = "Players from the Same City as Their Team",
+       x = "Team",
+       y = "Number of Players",
+       fill = "Team") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) # Rotate x labels for better readability
+```
+
